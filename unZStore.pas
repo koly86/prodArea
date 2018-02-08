@@ -1,0 +1,378 @@
+unit unZStore;
+
+interface
+
+uses
+  Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
+  Dialogs, ShrFunc, ComCtrls, ToolWin, ExtCtrls, Grids, DBGrids, DBGridEh,
+  DBLookupEh, Mask, DBCtrlsEh, StdCtrls, Buttons, DBCtrls, DB,
+  // FR_DSet, FR_DBSet, FR_Class,
+  IBQuery;
+
+type
+  TfmZStore = class(TForm)
+    p2: TPanel;
+    dbg2: TDBGrid;
+    Splitter1: TSplitter;
+    tlb2: TToolBar;
+    tb23: TToolButton;
+    p1: TPanel;
+    tlb1: TToolBar;
+    tb2: TToolButton;
+    ToolButton3: TToolButton;
+    tb3: TToolButton;
+    ToolButton5: TToolButton;
+    tb5: TToolButton;
+    ToolButton4: TToolButton;
+    tb6: TToolButton;
+    dbn1: TDBNavigator;
+    dbg1: TDBGrid;
+    p3: TPanel;
+    Panel2: TPanel;
+    Label7: TLabel;
+    SpeedButton1: TSpeedButton;
+    ed2: TEdit;
+    dbg3: TDBGrid;
+    DBNavigator1: TDBNavigator;
+    Label1: TLabel;
+    lcb1: TDBLookupComboBox;
+    ToolButton1: TToolButton;
+    procedure FormCreate(Sender: TObject);
+    procedure FormClose(Sender: TObject; var Action: TCloseAction);
+    procedure FormActivate(Sender: TObject);
+    procedure tb2Click(Sender: TObject);
+    procedure lcb1CloseUp(Sender: TObject);
+    procedure SpeedButton1Click(Sender: TObject);
+    procedure tb3Click(Sender: TObject);
+    procedure tb6Click(Sender: TObject);
+    procedure tb23Click(Sender: TObject);
+    procedure dbg2DblClick(Sender: TObject);
+    procedure ed2KeyUp(Sender: TObject; var Key: Word; Shift: TShiftState);
+    procedure tb5Click(Sender: TObject);
+  private
+    Kop: word;
+    procedure OpenZBill;
+    procedure OpenState;
+    { Private declarations }
+  public
+    N_TYPE: integer;
+    { Public declarations }
+  end;
+
+var
+  fmZStore: TfmZStore;
+
+implementation
+uses unMain, unIS, unOBJECT;
+
+const
+  id_Form = 12;
+
+{$R *.dfm}
+
+procedure TfmZStore.OpenZBill;
+begin
+  dmIS.N_TYPE := fmZStore.N_TYPE;
+  with dmIS.qZBill, dmIS.qZBill.SQL do
+  begin
+    Close;
+    if fmMain.UF21 then
+      UpdateObject := dmIS.upZBILL
+    else
+      UpdateObject := nil;
+    Clear;
+    Add('SELECT * FROM P_AREA_BILLS');
+    Add('WHERE ID_P_AREA = :s1 AND ID_DESTINATION = :cpa ');
+    Add('AND PA_BILL_TYPE = :tb AND D_GET IS NULL');
+    Add('ORDER BY ID_PA_BILL');
+    ParamByName('s1').AsInteger := lcb1.KeyValue;
+    ParamByName('cpa').AsInteger := fmMain.C_PA;
+    ParamByName('tb').AsInteger := N_TYPE;
+    dmIS.qZBillnDES.LookupDataSet := dmIS.qPA;
+    try
+      Open;
+    except;
+    end;
+  end;
+  with dmIS.qZBill_S do
+  begin
+    Close;
+    ParamByName('cpa').AsInteger := dmIS.qZBillID_PA_BILL.AsInteger;
+    Open;
+  end;
+end;
+
+procedure TfmZStore.OpenState;
+begin
+  with dmIS.qRZ do
+  begin
+    Close;
+    ParamByName('pa1').AsInteger := lcb1.KeyValue;
+    Open;
+  end;
+  with dmIS.qBState do
+  begin
+    Close;
+    ParamByName('pa1').AsInteger := lcb1.KeyValue;
+    Open;
+  end;
+end;
+
+procedure TfmZStore.FormCreate(Sender: TObject);
+begin
+  Kop := 0;
+  p1.BringToFront;
+  with TUserSettings.Create(dmIS.dbIS, id_Form) do
+  try
+    Read(Self, iniForm);
+  finally
+    Free;
+  end;
+end;
+
+procedure TfmZStore.FormClose(Sender: TObject; var Action: TCloseAction);
+begin
+  dmIS.qZBill_S.Close;
+  dmIS.qZBill.Close;
+  dmIS.qStores.Close;
+  //dmIS.qTeams.Close;
+  //dmIS.qDES_PA.Close;
+  //dmIS.qNOper.Close;
+  dmIS.qRZ.Close;
+  dmIS.qBState.Close;
+  with TUserSettings.Create(dmIS.dbIS, id_Form) do
+  try
+    Write(Self, iniForm);
+  finally
+    Free;
+  end;
+end;
+
+procedure TfmZStore.FormActivate(Sender: TObject);
+begin
+  tb2.Enabled := fmMain.UF21;
+  tb3.Enabled := fmMain.UF21;
+  tb5.Enabled := fmMain.UF_DOC;
+  tb23.Enabled := fmMain.UF21;
+  with dmIS.qStores do
+  begin
+    Close;
+    Open;
+    Last;
+    First;
+    lcb1.KeyValue := dmIS.qStoresID_P_AREA.AsInteger;
+  end;
+  fmZStore.OpenZBill;
+end;
+
+procedure TfmZStore.tb2Click(Sender: TObject);
+begin
+  if dmIS.qZBill.IsEmpty then
+    exit;
+  if dmIS.qZBill.State in [dsInsert, dsEdit] then
+    dmIS.qZBill.Post;
+  if not dmIS.qZBillD_FIX.IsNull then
+  begin
+    MsgInformation('Редактирование утвержденной накладной запрещено',
+      'Запрет редактирования');
+    exit;
+  end;
+  Kop := 2;
+  p3.BringToFront;
+  fmZStore.OpenState;
+end;
+
+procedure TfmZStore.lcb1CloseUp(Sender: TObject);
+begin
+  fmZStore.OpenZBill;
+end;
+
+procedure TfmZStore.SpeedButton1Click(Sender: TObject);
+begin
+  p1.BringToFront;
+  Kop := 0;
+end;
+
+procedure TfmZStore.tb3Click(Sender: TObject);
+begin
+  if dmIS.qZBill.IsEmpty then
+    exit;
+  if not dmIS.qZBillD_FIX.IsNull then
+  begin
+    MsgInformation('Удаление утвержденной накладной запрещено',
+      'Запрет удаления');
+    exit;
+  end;
+  if MsgQuestion(SysVars.NReg + ' , Вы действительно хотите удалить данную ' +
+    'накладную?', 'Удаление записи') = id_yes then
+    with dmIS.qIN, dmIS.qIN.SQL do
+    begin
+      Close;
+      Clear;
+      Add('DELETE FROM P_AREA_BILLS WHERE ID_PA_BILL = ' +
+        dmIS.qZBillID_PA_BILL.AsString);
+      try
+        ExecSQL;
+        if dmIS.mT.InTransaction then
+          dmIS.mT.CommitRetaining;
+      except
+        MsgInformation('Ошибка при удалении записи', 'Ошибка');
+        if dmIS.mT.InTransaction then
+          dmIS.mT.RollbackRetaining;
+      end;
+      fmZStore.OpenZBill;
+    end;
+end;
+
+procedure TfmZStore.tb6Click(Sender: TObject);
+begin
+  // If not dmIS.qZBill.IsEmpty Then frReport1.ShowReport;
+end;
+
+procedure TfmZStore.tb23Click(Sender: TObject);
+begin
+  if dmIS.qZBill_S.IsEmpty then
+    exit;
+  if Kop <> 2 then
+    exit;
+  if not dmIS.qZBillD_FIX.IsNull then
+  begin
+    MsgInformation('Изменение утвержденной накладной запрещено',
+      'Запрет удаления');
+    exit;
+  end;
+  if MsgQuestion(SysVars.NReg + ' , Вы действительно хотите удалить выбранную '
+    +
+    'запись?', 'Удаление записи') = id_yes then
+    with dmIS.qIN, dmIS.qIN.SQL do
+    begin
+      Close;
+      Clear;
+      Add('DELETE FROM PA_BILL_POS WHERE ID_PA_BILL_POS = ' +
+        dmIS.qZBill_SID_PA_BILL_POS.AsString);
+      try
+        ExecSQL;
+        if dmIS.mT.InTransaction then
+          dmIS.mT.CommitRetaining;
+      except
+        MsgInformation('Ошибка при удалении записи', 'Ошибка');
+        if dmIS.mT.InTransaction then
+          dmIS.mT.RollbackRetaining;
+      end;
+      with dmIS.qZBill_S do
+      begin
+        Close;
+        ParamByName('cpa').AsInteger := dmIS.qZBillID_PA_BILL.AsInteger;
+        Open;
+      end;
+    end;
+end;
+
+procedure TfmZStore.dbg2DblClick(Sender: TObject);
+begin
+  if not Assigned(fmOBJECT) then
+    Application.CreateForm(TfmObject, fmObject);
+  fmOBJECT.C_OBJ := dmIS.qZBill_SID_OBJECT.Value;
+  fmOBJECT.ShowModal;
+end;
+
+procedure TfmZStore.ed2KeyUp(Sender: TObject; var Key: Word;
+  Shift: TShiftState);
+var
+  KLV: extended;
+begin
+  if Key <> 13 then
+    exit;
+  if ed2.Text = '' then
+  begin
+    MsgInformation('Нужно ввести количество', 'Ввод данных');
+    exit;
+  end;
+  try
+    KLV := StrToFloat(ed2.Text);
+  except
+    MsgError('Ошибка при вводе количества', 'Ошибка ввода');
+  end;
+  if KLV > dmIS.qBStatefAMOUNT.AsFloat then
+  begin
+    MsgInformation('Количество превышает имеющееся в наличии.' +
+      ' Такое количество записать нельзя.', 'Ошибка количества');
+    exit;
+  end;
+  with dmIS.qIN, dmIS.qIN.SQL do
+  begin
+    Close;
+    Clear;
+    Add('INSERT INTO PA_BILL_POS (ID_PA_BILL_POS, ID_PA_BILL, ID_OBJECT,ID_BATCH,');
+    Add('ID_PROD_OPER,ID_STEP,AMOUNT, OBJ_TYPE) VALUES (GEN_ID(OBJ_ID,1), :idb, ');
+    Add(':ido, :idbh, :idpo, :ids, :amo, :otyp)');
+    ParamByName('idb').AsInteger := dmIS.qZBillID_PA_BILL.AsInteger;
+    ParamByName('ido').AsInteger := dmIS.qBStateID_OBJECT.AsInteger;
+    ParamByName('idbh').AsInteger := dmIS.qBStateID_BATCH.AsInteger;
+    ParamByName('idpo').AsInteger := dmIS.qBStateID_PROD_OPER.AsInteger;
+    ParamByName('ids').AsInteger := dmIS.qBStateID_STEP.AsInteger;
+    ParamByName('otyp').AsInteger := dmIS.qBStateID_OBJECT_TYPE.AsInteger;
+    try
+      ParamByName('amo').AsString := ed2.Text;
+    except
+      MsgError('Ошибка при вводе количества', 'Ошибка ввода');
+    end;
+    // showmessage(Text);
+    try
+      ExecSQL;
+    except
+      MsgError('Ошибка записи в спецификацию накладной', 'Ошибка записи');
+    end;
+  end;
+  fmZStore.OpenState;
+  with dmIS.qZBill_S do
+  begin
+    Close;
+    ParamByName('cpa').AsInteger := dmIS.qZBillID_PA_BILL.AsInteger;
+    Open;
+  end;
+
+end;
+
+procedure TfmZStore.tb5Click(Sender: TObject);
+begin
+  if dmIS.qZBill.IsEmpty then
+    exit;
+  if dmIS.qZBillD_FIX.IsNull then
+    exit;
+  if MsgQuestion('После подшивки накладная будет недоступна для редактирования. '
+    +
+    'Все входящие в спецификацию объекты будут приняты на Ваш участок. ' +
+    SysVars.NReg +
+    ' , Вы действительно хотите подшить выбранную накладную?',
+    'Подшивка накладной') = id_yes then
+    with dmIS.qIN, dmIS.qIN.SQL do
+    begin
+      Close;
+      Clear;
+      Add('SELECT STATUS FROM PA_BILL_P(:idb,0,:idp)');
+      ParamByName('idb').AsInteger := dmIS.qZBillID_PA_BILL.AsInteger;
+      ParamByName('idp').AsInteger := SysVars.RegTN;
+      try
+        Open;
+        {
+          Close;
+          Clear;
+          Add('SELECT STATUS FROM PA_BILL_P(:idb,1,:idp)');
+          ParamByName('idb').AsInteger := dmIS.qZBillID_PA_BILL.AsInteger;
+          ParamByName('idp').AsInteger := SysVars.RegTN;
+          Open;
+        }
+        if dmIS.mT.InTransaction then
+          dmIS.mT.Commit;
+      except
+        if dmIS.mT.InTransaction then
+          dmIS.mT.Rollback;
+        MsgError('Ошибка при подшивке накладной', 'Ошибка подшивки');
+      end;
+      fmMain.FormActivate(Self);
+      fmZStore.FormActivate(Self);
+    end;
+end;
+
+end.

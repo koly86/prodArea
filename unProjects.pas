@@ -1,0 +1,137 @@
+unit unProjects;
+
+interface
+
+uses
+  Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
+  Dialogs, ShrFunc, Grids, DBGrids, ToolWin, ComCtrls, ExtCtrls, IBQuery,
+  unMainForm;
+
+type
+  TfmPROJECTS = class(TMainForm)
+    tlb1: TToolBar;
+    p3: TPanel;
+    p4: TPanel;
+    p2: TPanel;
+    dbg2: TDBGrid;
+    Splitter1: TSplitter;
+    p1: TPanel;
+    dbg1: TDBGrid;
+    dbg3: TDBGrid;
+    procedure FormCreate(Sender: TObject);
+    procedure FormClose(Sender: TObject; var Action: TCloseAction);
+    procedure FormActivate(Sender: TObject);
+    procedure dbg1DblClick(Sender: TObject);
+    procedure dbg2DblClick(Sender: TObject);
+  private
+    { Private declarations }
+  public
+    { Public declarations }
+  end;
+
+var
+  fmPROJECTS: TfmPROJECTS;
+
+implementation
+uses unMain, unIS, unOBJECT;
+
+const
+  id_Form = 23;
+
+{$R *.dfm}
+
+procedure TfmPROJECTS.FormCreate(Sender: TObject);
+begin
+  with TUserSettings.Create(dmIS.dbIS, id_Form) do
+  try
+    Read(Self, iniForm);
+    Read(p2, iniRect);
+  finally
+    Free;
+  end;
+end;
+
+procedure TfmPROJECTS.FormClose(Sender: TObject; var Action: TCloseAction);
+begin
+  dmIS.qP_PR.Close;
+  dmIS.qP_OBJ.Close;
+  dmIS.qPLAN.Close;
+  with TUserSettings.Create(dmIS.dbIS, id_Form) do
+  try
+    Write(Self, iniForm);
+    Write(p2, iniRect);
+  finally
+    Free;
+  end;
+end;
+
+procedure TfmPROJECTS.FormActivate(Sender: TObject);
+begin
+  with dmIS.qP_PR do
+  begin
+    Close;
+    ParamByName('pa1').AsInteger := fmMain.C_PA;
+    Open;
+  end;
+  with dmIS.qP_OBJ do
+  begin
+    Close;
+    ParamByName('pa1').AsInteger := fmMain.C_PA;
+    Open;
+  end;
+  with dmIS.qPLAN do
+  begin
+    Close;
+    Open;
+  end;
+end;
+
+procedure TfmPROJECTS.dbg1DblClick(Sender: TObject);
+var
+  P_OBJ: integer;
+begin
+  if not Assigned(fmOBJECT) then
+    Application.CreateForm(TfmOBJECT, fmOBJECT);
+  P_OBJ := 0;
+  with dmIS.qIN, dmIS.qIN.SQL do
+  begin
+    Close;
+    Clear;
+    // Add('SELECT ID_OBJECT FROM PRODUCT_OBJECTS');
+    // Add('WHERE ID_VERSION = :or1 AND ID_PARENT = 0');
+    // ParamByName('or1').AsInteger := fmMain.CP_VER; //dmIS.qD_JOBID_VERSION.AsInteger;
+
+    Add('SELECT ID_OBJECT,ID_VERSION FROM PRODUCT_OBJECTS');
+    Add('WHERE ID_ORDER = :or1 AND ID_PARENT = 0');
+    ParamByName('or1').AsInteger := dmIS.qP_PRID_ORDER.AsInteger;
+    try
+      Open;
+    except;
+    end;
+    if not IsEmpty then
+    begin
+      P_OBJ := FieldByName('ID_OBJECT').AsInteger;
+      fmMain.CP_VER := FieldByName('ID_VERSION').AsInteger;
+    end;
+  end;
+  fmOBJECT.C_OBJ := P_OBJ;
+
+  fmOBJECT.Caption := 'Заказ - ' + dmIS.qP_PRN_ORDER.AsString + ' - ' +
+    dmIS.qP_PRNAME.AsString;
+  fmOBJECT.lbConstr.Caption := dmIS.qP_PRFIO.AsString;
+  fmOBJECT.ShowModal;
+end;
+
+procedure TfmPROJECTS.dbg2DblClick(Sender: TObject);
+begin
+  if not Assigned(fmOBJECT) then
+    Application.CreateForm(TfmOBJECT, fmOBJECT);
+  fmMain.Tree_Det := True;
+  fmOBJECT.C_OBJ := dmIS.qP_OBJID_OBJECT.AsInteger;
+  fmMain.CP_VER := dmIS.qP_OBJID_VERSION.AsInteger;
+  fmOBJECT.Caption := 'Заказ - ' + dmIS.qP_PRN_ORDER.AsString + ' - ' +
+    dmIS.qP_PRNAME.AsString;
+  fmOBJECT.ShowModal;
+end;
+
+end.

@@ -1,0 +1,47 @@
+CREATE PROCEDURE NAKL_PD (
+    SK SMALLINT,
+    RN INTEGER,
+    DP VARCHAR(10))
+RETURNS (
+    OTV INTEGER)
+AS
+DECLARE VARIABLE TOV INTEGER;
+DECLARE VARIABLE RZ INTEGER;
+DECLARE VARIABLE KV NUMERIC(15,3);
+DECLARE VARIABLE SKV NUMERIC(15,3);
+begin
+OTV = -1;
+for select IDTOV, RNZ, KOLVO
+from ZNAKL_S
+where IDSKL = :SK and RNN = :RN
+into :TOV, :RZ, :KV
+do
+begin
+ SKV = NULL ;
+ select SKOLVO
+ from SSKLAD
+ where IDSKL = :SK and IDTOV = :TOV
+ and RNZ = :RZ
+ into :SKV ;
+ if (:SKV IS NULL or (:SKV < :KV)) then
+ begin
+  OTV = :TOV ;
+  SUSPEND;
+  EXIT;
+ end
+ update SSKLAD set SKOLVO = :SKV - :KV,
+ RNN = :RN , DSKL = :SK
+ where IDSKL = :SK and IDTOV = :TOV
+ and RNZ = :RZ ;
+end
+update ZNAKL set DPOD = CURRENT_TIMESTAMP,
+DOLPOD = :DP
+where IDSKL = :SK and RNN = :RN ;
+insert into NAKL_S
+select * from ZNAKL_S 
+where IDSKL = :SK and RNN = :RN ;
+insert into NAKL
+select * from ZNAKL 
+where IDSKL = :SK and RNN = :RN ;
+SUSPEND ;
+end

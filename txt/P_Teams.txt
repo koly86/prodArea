@@ -1,0 +1,300 @@
+  private
+    C_AP, C_FP: Integer;
+    procedure OpenPers;
+    { Private declarations }
+  public
+    C_Area: integer;
+    TRP : word;
+    { Public declarations }
+  end;
+
+var
+  fmPers: TfmPers;
+
+implementation
+uses unMain, unIS ;
+
+{$R *.dfm}
+
+procedure TfmPers.OpenPers;
+begin
+case TRP of
+1: begin
+ with dmIS.qFreePers, dmIS.qFreePers.SQL do begin
+  Close;
+  Clear;
+  Add('select ID_P, FIO, IDPOST from PERSONNEL');
+  Add('where IDPRODAREA IS NULL  and D_DISMISS IS NULL');
+  Add('order by FIO');
+  Open;
+ end;
+ with dmIS.qAPers, dmIS.qAPers.SQL do begin
+  Close;
+  Clear;
+  Add('select  ID_P, FIO, IDPOST from PERSONNEL');
+  Add('where IDPRODAREA = :a1 and D_DISMISS is null');
+  Add('order by FIO');
+  ParamByName('a1').AsInteger := lcb1.KeyValue;
+  Open;
+ end;
+end;
+2: begin
+ with dmIS.qFreePers, dmIS.qFreePers.SQL do begin
+  Close;
+  Clear;
+  Add('select ID_P, FIO, IDPOST from PERSONNEL');
+  Add('where ID_P NOT IN (SELECT ID_P FROM P_AREA_FILING where ID_P_AREA = :a1)  and D_DISMISS IS NULL');
+  Add('order by FIO');
+  ParamByName('a1').AsInteger := lcb1.KeyValue;
+  Open;
+ end;
+ with dmIS.qAPers, dmIS.qAPers.SQL do begin
+  Close;
+  Clear;
+  Add('select P.ID_P, P.FIO, P.IDPOST from PERSONNEL P, P_AREA_FILING F');
+  Add('where F.ID_P_AREA = :a1 and P.ID_P = F.ID_P and P.D_DISMISS is null');
+  Add('order by P.FIO');
+  ParamByName('a1').AsInteger := lcb1.KeyValue;
+  Open;
+ end;
+end;
+end;
+end;
+
+procedure TfmPers.FormActivate(Sender: TObject);
+begin
+case TRP of
+1: begin
+ fmPers.Caption := '?ani?aaaeaiea ia?niiaea';
+ lb1.Caption := 'Ia caiyoue a i?iecaianoaa ia?niiae';
+ sb3.Show;
+ with dmIS.qArs, dmIS.qArs.SQL do begin
+  Close;
+  Clear;
+  Add('select ID_P_AREA, NAME, ID_DIV from PROD_AREAS');
+  Add('where ID_PATYPE = 5 and D_CLOSE IS NULL order by NAME');
+  Open;
+  Last;
+  First;
+  Locate('ID_P_AREA',fmMain.C_PA,[]);
+ end;
+end;
+2: begin
+ fmPers.Caption := 'Eeoa, eia?uea i?aai iiaoeaee aieoiaioia';
+ lb1.Caption := 'Ia eia?uea i?aa iiaoeaee';
+ sb3.Hide;
+ with dmIS.qArs, dmIS.qArs.SQL do begin
+  Close;
+  Clear;
+  Add('select ID_P_AREA, NAME, ID_DIV from PROD_AREAS');
+  Add('where ID_PATYPE IN (5,9) and D_CLOSE IS NULL order by NAME');
+  Open;
+  Last;
+  First;
+  Locate('ID_P_AREA',C_Area,[]);
+ end;
+end;
+end;
+lcb1.KeyValue := dmIS.qArsID_P_AREA.Value;
+dmIS.qPosts.Close;
+dmIS.qPosts.Open;
+fmPers.OpenPers;
+end;
+
+procedure TfmPers.FormClose(Sender: TObject; var Action: TCloseAction);
+begin
+dmIS.qAPers.Close;
+dmIS.qFreePers.Close;
+dmIS.qPosts.Close;
+dmIS.qArs.Close;
+end;
+
+procedure TfmPers.lcb1Click(Sender: TObject);
+begin
+fmPers.OpenPers;
+end;
+
+procedure TfmPers.ed1KeyUp(Sender: TObject; var Key: Word;
+  Shift: TShiftState);
+begin
+If dmIS.qFreePers.IsEmpty Then exit;
+If Key = 13 Then
+try
+ Screen.Cursor := crHourGlass ;
+ If ed1.Text = '' Then  begin
+  ShowMessage('Caiieieoa ia?acao iienea ');
+  Screen.Cursor := crDefault ;
+  exit;
+ end;
+ C_FP := dmIS.qFreePersID_P.Value ;
+ dmIS.qFreePers.DisableControls;
+ Repeat
+  If dmIS.qFreePers.Eof Then dmIS.qFreePers.First else dmIS.qFreePers.Next;
+  until (Pos(ansiuppercase(ed1.Text),ansiuppercase(dbg1.SelectedField.AsString)) > 0)
+  or (C_FP = dmIS.qFreePersID_P.Value) ;
+ dmIS.qFreePers.EnableControls;
+ Screen.Cursor := crDefault ;
+except
+end;
+end;
+
+procedure TfmPers.ed2KeyUp(Sender: TObject; var Key: Word;
+  Shift: TShiftState);
+begin
+If dmIS.qAPers.IsEmpty Then exit;
+If Key = 13 Then
+try
+ Screen.Cursor := crHourGlass ;
+ If ed1.Text = '' Then  begin
+  ShowMessage('Caiieieoa ia?acao iienea ');
+  Screen.Cursor := crDefault ;
+  exit;
+ end;
+ C_AP := dmIS.qAPersID_P.Value ;
+ dmIS.qAPers.DisableControls;
+ Repeat
+  If dmIS.qAPers.Eof Then dmIS.qAPers.First else dmIS.qAPers.Next;
+  until (Pos(ansiuppercase(ed1.Text),ansiuppercase(dbg1.SelectedField.AsString)) > 0)
+  or (C_AP = dmIS.qAPersID_P.Value) ;
+ dmIS.qAPers.EnableControls;
+ Screen.Cursor := crDefault ;
+except
+end;
+end;
+
+procedure TfmPers.sb1Click(Sender: TObject);
+var i:integer;
+begin
+If dmIS.qFreePers.IsEmpty Then exit;
+If dbg1.SelectedRows.Count < 1 Then begin
+ MsgInformation('Io?ii aua?aou nio?oaieeia aey ia?aiauaiey','Auai? nio?oaieeia');
+ exit;
+end;
+If MsgQuestion('Ana aua?aiiua nio?oaieee aoaoo ia?aiauaiu. ' +
+ SysVars.NReg + ', Auiieieou ia?aiauaiea?', 'Eciaiaiea aaiiuo') = id_yes
+Then begin
+  for i:= 0 to dbg1.SelectedRows.Count - 1 do
+  begin
+   dmIS.qFreePers.GotoBookmark(pointer(dbg1.SelectedRows.Items[i]));
+    with dmIS.qIN, dmIS.qIN.SQL do begin
+     Close;
+     Clear;
+     case TRP of
+     1: begin
+      Add('UPDATE PERSONNEL SET IDPRODAREA = ' + IntToStr(lcb1.KeyValue));
+      Add('WHERE ID_P = ' + dmIS.qFreePersID_P.AsString);
+     end;
+     2: begin
+      Add('INSERT INTO P_AREA_FILING VALUES ( ' + IntToStr(lcb1.KeyValue));
+      Add(', ' + dmIS.qFreePersID_P.AsString + ')');
+     end;
+     end;
+     try
+      ExecSQL;
+     except
+      MsgError('Ioeaea i?e ia?aiauaiee nio?oaieea - ' +
+        dmIS.qFreePersFIO.Value, 'Ioeaea ia?aiauaiey');
+     end;
+    end;
+   end;
+   If dmIS.mT.InTransaction Then dmIS.mT.CommitRetaining;
+  fmPers.OpenPers;
+  end;
+end;
+
+procedure TfmPers.sb2Click(Sender: TObject);
+var i: integer;
+begin
+If dmIS.qAPers.IsEmpty Then exit;
+If dbg2.SelectedRows.Count < 1 Then begin
+ MsgInformation('Io?ii aua?aou nio?oaieeia aey ia?aiauaiey','Auai? nio?oaieeia');
+ exit;
+end;
+If MsgQuestion('Ana aua?aiiua nio?oaieee aoaoo ia?aiauaiu. ' +
+ SysVars.NReg + ', Auiieieou ia?aiauaiea?', 'Eciaiaiea aaiiuo') = id_yes
+Then begin
+  for i:= 0 to dbg2.SelectedRows.Count - 1 do
+  begin
+   dmIS.qAPers.GotoBookmark(pointer(dbg2.SelectedRows.Items[i]));
+    with dmIS.qIN, dmIS.qIN.SQL do begin
+     Close;
+     Clear;
+     case TRP of
+     1: begin
+      Add('UPDATE PERSONNEL SET IDPRODAREA = NULL');
+      Add('WHERE ID_P = ' + dmIS.qAPersID_P.AsString);
+     end;
+     2: begin
+      Add('DELETE FROM P_AREA_FILING WHERE ID_P_AREA = ' +
+       IntToStr(lcb1.KeyValue) + 'AND ID_P = ' + dmIS.qAPersID_P.AsString);
+     end;
+     end;
+     try
+      ExecSQL;
+     except
+      MsgError('Ioeaea i?e ia?aiauaiee nio?oaieea - ' +
+        dmIS.qAPersFIO.Value, 'Ioeaea ia?aiauaiey');
+     end;
+    end;
+   end;
+   If dmIS.mT.InTransaction Then dmIS.mT.CommitRetaining;
+  fmPers.OpenPers;
+  end;
+end;
+
+procedure TfmPers.sb4Click(Sender: TObject);
+begin
+If dmIS.qAPers.IsEmpty Then exit;
+If MsgQuestion('Ana nio?oaieee ec iia?acaaeaiey - ' + dmIS.qArsNAME.Value +
+'- aoaoo ia?aiauaiu a naiaiaiue ia?niiae. ' +
+ SysVars.NReg + ', Auiieieou ia?aiauaiea?', 'Eciaiaiea aaiiuo') = id_yes
+Then with dmIS.qIN, dmIS.qIN.SQL do begin
+ Close;
+ Clear;
+ case TRP of
+ 1: begin
+  Add('UPDATE PERSONNEL SET IDPRODAREA = NULL');
+  Add('WHERE ID_P IN (SELECT ID_P FROM PERSONNEL WHERE IDPRODAREA = ' +
+   IntToStr(lcb1.KeyValue) + ')');
+  end;
+ 2: begin
+  Add('DELETE FROM P_AREA_FILING WHERE ID_P_AREA = ' +
+       IntToStr(lcb1.KeyValue));
+ end;
+ end;
+ try
+  ExecSQL;
+  If dmIS.mT.InTransaction Then dmIS.mT.CommitRetaining;
+ except
+  MsgError('Ioeaea i?e ia?aiauaiee nio?oaieeia - ' +
+        dmIS.qAPersFIO.Value, 'Ioeaea ia?aiauaiey');
+  If dmIS.mT.InTransaction Then dmIS.mT.RollbackRetaining;
+ end;
+ fmPers.OpenPers;
+end;
+end;
+
+procedure TfmPers.sb3Click(Sender: TObject);
+begin
+If dmIS.qFreePers.IsEmpty Then exit;
+If MsgQuestion('Ana ia caiyoua nio?oaieee, niioaaonoao?uea aaciaiio ' +
+ 'iia?acaaeaie?, aoaoo ia?aiauaiu a iia?acaaeaiea - ' + dmIS.qArsNAME.AsString +
+ '. ' + SysVars.NReg + ', Auiieieou ia?aiauaiea?', 'Eciaiaiea aaiiuo') = id_yes
+Then with dmIS.qIN, dmIS.qIN.SQL do begin
+ Close;
+ Clear;
+ Add('UPDATE PERSONNEL SET IDPRODAREA = ' + dmIS.qArsID_P_AREA.AsString);
+ Add('WHERE ID_P IN (SELECT ID_P FROM PERSONNEL WHERE IDPRODAREA IS NULL ');
+ Add('AND D_DISMISS IS NULL AND ID_DIVISION = ' + dmIS.qArsID_DIV.AsString + ')');
+ try
+  ExecSQL;
+  If dmIS.mT.InTransaction Then dmIS.mT.CommitRetaining;
+ except
+  MsgError('Ioeaea i?e ia?aiauaiee nio?oaieeia - ' +
+        dmIS.qAPersFIO.Value, 'Ioeaea ia?aiauaiey');
+  If dmIS.mT.InTransaction Then dmIS.mT.RollbackRetaining;
+ end;
+ fmPers.OpenPers;
+end;
+end;
+

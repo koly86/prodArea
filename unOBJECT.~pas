@@ -1,0 +1,247 @@
+unit unOBJECT;
+
+interface
+
+uses
+  Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
+  Dialogs, ShrFunc, ComCtrls, DBTrees, Grids, DBGrids, ExtCtrls, StdCtrls,
+  DBCtrls, ToolWin, ImgList, unMainForm, Buttons, DB, IBCustomDataSet,
+  IBQuery, DBGridEh;
+
+type
+  TfmOBJECT = class(TMainForm)
+    dbt1: TDB_TreeView;
+    Splitter1: TSplitter;
+    Panel1: TPanel;
+    pc1: TPageControl;
+    ts21: TTabSheet;
+    Panel2: TPanel;
+    Label3: TLabel;
+    DBText3: TDBText;
+    Label4: TLabel;
+    dbm1: TDBMemo;
+    ts22: TTabSheet;
+    Splitter2: TSplitter;
+    ts23: TTabSheet;
+    dbn1: TDBNavigator;
+    dbg1: TDBGrid;
+    Panel3: TPanel;
+    Label2: TLabel;
+    DBText2: TDBText;
+    Label1: TLabel;
+    DBText1: TDBText;
+    il1: TImageList;
+    SpeedButton1: TSpeedButton;
+    sd1: TSaveDialog;
+    Label5: TLabel;
+    lbConstr: TLabel;
+    Panel4: TPanel;
+    dbg4: TDBGrid;
+    dbg3: TDBGrid;
+    Splitter3: TSplitter;
+    Panel5: TPanel;
+    dbg2: TDBGrid;
+    Splitter4: TSplitter;
+    Splitter5: TSplitter;
+    DBGridEh1: TDBGridEh;
+    procedure FormCreate(Sender: TObject);
+    procedure FormClose(Sender: TObject; var Action: TCloseAction);
+    procedure dbt1Change(Sender: TObject; Node: TTreeNode);
+    procedure dbg1DblClick(Sender: TObject);
+    procedure dbt1BuildNode(Sender: TObject; StateFieldValue: Variant;
+      var StateImage: Integer);
+    procedure FormShow(Sender: TObject);
+    procedure SpeedButton1Click(Sender: TObject);
+  private
+    procedure OpenObject;
+
+    { Private declarations }
+  public
+    C_OBJ: integer;
+    procedure FindInTree(idp: integer);
+    procedure FindInTree_Det(ItemID: integer);
+    { Public declarations }
+  end;
+
+var
+  fmOBJECT: TfmOBJECT;
+
+implementation
+uses unMain, unIS, unSpec, unD_JOB;
+
+const
+  id_Form = 10;
+
+{$R *.dfm}
+
+procedure TfmOBJECT.FindInTree_Det(ItemID: integer);
+var
+  i: integer;
+begin
+  dbt1.Items.BeginUpdate;
+  for i := 0 to dbt1.Items.Count - 1 do
+    if Integer(dbt1.Items[i].Data) = ItemId then
+    begin
+      dbt1.Selected := dbt1.Items[i];
+      break;
+    end;
+  dbt1.Items.EndUpdate;
+end;
+
+procedure TfmOBJECT.FindInTree(idp: integer);
+begin
+  if idp < 0 then
+    exit;
+  dbt1.RootId := idp;
+  dbt1.Items.BeginUpdate;
+  dbt1.BuildTree;
+  dbt1.Items.EndUpdate;
+  dbt1.Selected := dbt1.Items[0];
+  dbt1.Selected.Expand(False);
+end;
+
+procedure TfmOBJECT.OpenObject;
+begin
+  with dmIS.qOBJ do
+  begin
+    Close;
+    ParamByName('obj1').AsInteger := dbt1.GetId;
+    Open;
+  end;
+
+  with dmIS.qOBJ_DOCS do
+  begin
+    Close;
+    ParamByName('obj1').AsInteger := dbt1.GetId;
+    Open;
+  end;
+  with dmIS.qOBJ_OPER do
+  begin
+    Close;
+    ParamByName('obj1').AsInteger := dbt1.GetId;
+    Open;
+  end;
+  with dmIS.qSub_Oper do
+  begin
+    Close;
+    ParamByName('id_prod_oper').AsInteger :=
+      dmIS.qOBJ_OPERID_PROD_OPER.AsInteger;
+    Open;
+  end;
+
+  with dmIS.qOPER_MAT do
+  begin
+    Close;
+    ParamByName('op1').AsInteger := dmIS.qOBJ_OPERID_PROD_OPER.AsInteger;
+    Open;
+  end;
+  with dmIS.qTraf do
+  begin
+    Close;
+    Open;
+  end;
+end;
+
+procedure TfmOBJECT.FormCreate(Sender: TObject);
+begin
+  with TUserSettings.Create(dmIS.dbIS, id_Form) do
+  try
+    Read(Self, iniForm);
+    Read(pc1, iniRect);
+    Read(dbg3, iniRect);
+  finally
+    Free;
+  end;
+end;
+
+procedure TfmOBJECT.FormClose(Sender: TObject; var Action: TCloseAction);
+begin
+  dmIS.qOBJ.Close;
+  dmIS.qOBJ_OPER.Close;
+  dmIS.qOPER_MAT.Close;
+  dmIS.qOBJ_DOCS.Close;
+  dmIS.qTraf.Close;
+  with TUserSettings.Create(dmIS.dbIS, id_Form) do
+  try
+    Write(Self, iniForm);
+    Write(pc1, iniRect);
+    Write(dbg3, iniRect);
+  finally
+    Free;
+  end;
+  dmIS.dbDOC.Connected := False;
+end;
+
+procedure TfmOBJECT.dbt1Change(Sender: TObject; Node: TTreeNode);
+begin
+  fmOBJECT.OpenObject;
+end;
+
+procedure TfmOBJECT.dbg1DblClick(Sender: TObject);
+begin
+  if dmIS.qOBJ_DOCS.IsEmpty then
+    exit;
+  if dmIS.qOBJ_DOCSID_DOC.IsNull then
+    exit;
+{  if not dmIS.dbDOC.Connected then
+  try
+    dmIS.dbDOC.Connected := True;
+  except
+    MsgError('Нет связи с хранилищем документов', 'Ошибка подключения');
+  end;}
+  try
+//    fmMain.StoreDoc(0, dmIS.qOBJ_DOCSID_DOC.Value, '');
+    Old_DocBody(dmIS.qOBJ_DOCSID_DOC.Value,0,'');
+  except
+    MsgError('Ошибка вывода документа', 'Ошибка');
+  end;
+end;
+
+procedure TfmOBJECT.dbt1BuildNode(Sender: TObject;
+  StateFieldValue: Variant; var StateImage: Integer);
+begin
+  //StateImage := StateFieldValue;
+  if StateFieldValue <> null then
+    StateImage := 8
+  else
+    StateImage := 0;
+end;
+
+procedure TfmOBJECT.FormShow(Sender: TObject);
+begin
+  Screen.Cursor := crHourGlass;
+  with dbt1 do
+  begin
+    BeginDrag(false);
+    ClearTree;
+    //RootId := C_OBJ;
+    TableName := 'GET_VERSION_TREE (' + IntToStr(fmMain.CP_VER) + ')';
+    Items.BeginUpdate;
+    BuildTree;
+    FullExpand;
+    Items.EndUpdate;
+    Selected := Items[0];
+    Items[0].Text := 'Версия: ' + IntToStr(fmMain.CP_VER);
+    fmOBJECT.Caption := 'Параметры объекта: ' + Selected.Text;
+    EndDrag(false);
+  end;
+
+  //поиск детали в дереве
+  if fmMain.Tree_Det then
+  begin
+    // fmOBJECT.FindInTree_Det(dmIS.qD_JOBID_OBJECT.AsInteger);
+    fmOBJECT.FindInTree_Det(C_OBJ);
+    fmMain.Tree_Det := False;
+  end;
+  //конструктор
+
+  Screen.Cursor := crDefault;
+end;
+
+procedure TfmOBJECT.SpeedButton1Click(Sender: TObject);
+begin
+  if sd1.Execute then
+    dbt1.SaveToFile(sd1.FileName);
+end;
+
+end.
